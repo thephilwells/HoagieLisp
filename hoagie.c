@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include "mpc.h"
 
 /* If we are compiling on Windows, compile these functions */
 #ifdef _WIN32
@@ -21,6 +22,7 @@ char* readline(char* prompt) {
 void add_history(char* unused) {}
 
 /* Otherwise include the real editline headers */
+/* comoile using `cc -std=c99 -Wall hoagie.c -lreadline -o hoagie` */
 #else
 #include <editline/readline.h>
 #endif
