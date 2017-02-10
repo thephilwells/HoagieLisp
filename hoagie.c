@@ -38,14 +38,14 @@ int main(int argc, char** argv) {
     mpca_lang(MPCA_LANG_DEFAULT,
     "                                                     \
      number     : /-?[0-9]+/ ;                            \
-     operator   : '+' | '-' | '*' | '/' ;                 \
+     operator   : '+' | '-' | '*' | '/' | '%';            \
      expr       : <number> | '(' <operator> <expr>+ ')' ; \
-     hoagie     : /^/ <operator> <expr>+ /$/ ;
+     hoagie     : /^/ <operator> <expr>+ /$/ ;            \
     ",
     Number, Operator, Expr, Hoagie);
 
     /* Print Version and Exit information */
-    puts("\nHoagieLisp Version 0.0.0.1");
+    puts("\nHoagieLisp Version 0.0.0.2");
     puts("Press ctrl-c to exit\n");
 
     /* In a never-ending loop */
@@ -55,7 +55,17 @@ int main(int argc, char** argv) {
         char* input = readline("\nhoagie> ");
         add_history(input);
 
-        printf("You typed: %s", input);
+        // Attempt to parse user input
+        mpc_result_t r;
+        if (mpc_parse("<stdin>", input, Hoagie, &r)) {
+            // On success print the AST
+            mpc_ast_print(r.output);
+            mpc_ast_delete(r.output);
+        } else {
+            // Otherwise print the error
+            mpc_err_print(r.error);
+            mpc_err_delete(r.error);
+        }
         free(input);
     }
     // Undefine and delete our parsers
