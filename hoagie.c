@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include "mpc.h"
 
 /* If we are compiling on Windows, compile these functions */
@@ -41,7 +42,7 @@ int main(int argc, char** argv) {
     mpca_lang(MPCA_LANG_DEFAULT,
     "                                                     \
      number     : /-?[0-9]+/ ;                            \
-     operator   : '+' | '-' | '*' | '/' | '%';            \
+     operator   : '+' | '-' | '*' | '/' | '%' | '^';      \
      expr       : <number> | '(' <operator> <expr>+ ')' ; \
      hoagie     : /^/ <operator> <expr>+ /$/ ;            \
     ",
@@ -105,5 +106,6 @@ long eval_op(long x, char* op, long y) {
     if (strcmp(op, "*") == 0) { return x * y; }
     if (strcmp(op, "/") == 0) { return x / y; }
     if (strcmp(op, "%") == 0) { return x % y; }
+    if (strcmp(op, "^") == 0) { return pow(x, y); }
     return 0;
 }
