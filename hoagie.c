@@ -69,7 +69,7 @@ int main(int argc, char **argv)
     // Define them with the following language
     mpca_lang(MPCA_LANG_DEFAULT,
     "                                                                   \
-     number     : /[-+]?\\d+(\\.\\d+)?/ ;                                  \
+     number     : /[-+]?\\d+(\\.\\d+)?/ ;                               \
      operator   : '+' | '-' | '*' | '/' | '%' | '^' | \"min\" | \"max\";\
      expr       : <number> | '(' <operator> <expr>+ ')' ;               \
      hoagie     : /^/ <operator> <expr>+ /$/ ;                          \
