@@ -46,10 +46,13 @@ lval* lval_eval(lval*);
 lval* lval_pop(lval*, int);
 lval* lval_take(lval*, int);
 lval* builtin_op(lval*, char*);
+lval* builtin_head(lval*);
+lval* builtin_tail(lval*);
 lval* lval_num(double);
 lval* lval_err(char*);
 lval* lval_sym(char*);
 lval* lval_sexpr(void);
+lval* lval_qexpr(void);
 void lval_del(lval*);
 lval* lval_read_num(mpc_ast_t*);
 lval* lval_read(mpc_ast_t*);
@@ -64,7 +67,8 @@ enum
     LVAL_NUM,
     LVAL_ERR,
     LVAL_SYM,
-    LVAL_SEXPR
+    LVAL_SEXPR,
+    LVAL_QEXPR
 };
 
 int main(int argc, char **argv)
@@ -73,6 +77,7 @@ int main(int argc, char **argv)
     mpc_parser_t *Number = mpc_new("number");
     mpc_parser_t *Symbol = mpc_new("symbol");
     mpc_parser_t *Sexpr = mpc_new("sexpr");
+    mpc_parser_t *Qexpr = mpc_new("qexpr");
     mpc_parser_t *Expr = mpc_new("expr");
     mpc_parser_t *Hoagie = mpc_new("hoagie");
 
@@ -80,12 +85,14 @@ int main(int argc, char **argv)
     mpca_lang(MPCA_LANG_DEFAULT,
     "                                                                   \
      number     : /[-+]?\\d+(\\.\\d+)?/ ;                               \
-     symbol     : '+' | '-' | '*' | '/' | '%' | '^' | \"min\" | \"max\";\
-     sexpr      : '(' <expr>* ')' ;                                     \
-     expr       : <number> | <symbol> | <sexpr> ;                       \
+     symbol     : '+' | '-' | '*' | '/' | '%' | '^' | \"min\" | \"max\" \
+                | \"list\" | \"head\" | \"tail\" | \"join\" | \"eval\" ;\
+     sexpr  : '(' <expr>* ')' ;                                         \
+     qexpr  : '{' <expr>* '}' ;                                         \
+     expr   : <number> | <symbol> | <sexpr> | <qexpr> ;                 \
      hoagie     : /^/ <expr>* /$/ ;                                     \
     ",
-    Number, Symbol, Sexpr, Expr, Hoagie);
+    Number, Symbol, Sexpr, Qexpr, Expr, Hoagie);
 
     /* Print Version and Exit information */
     puts("\nHoagieLisp Version 0.0.0.9");
@@ -117,7 +124,7 @@ int main(int argc, char **argv)
         free(input);
     }
     // Undefine and delete our parsers
-    mpc_cleanup(5, Number, Symbol, Sexpr, Expr, Hoagie);
+    mpc_cleanup(5, Number, Symbol, Sexpr, Qexpr, Expr, Hoagie);
     return 0;
 }
 
@@ -218,6 +225,56 @@ lval* builtin_op(lval* a, char* op) {
     return x;
 }
 
+lval* builtin_head(lval* a) {
+    // Check error conditions
+    if (a->count != 1) {
+        lval_del(a);
+        return lval_err("Function `head` passed too many arguments!");
+    }
+
+    if (a->cell[0]->type != LVAL_QEXPR) {
+        lval_del(a);
+        return lval_err("Function `head` passed incorrect types!");
+    }
+
+    if (a->cell[0]->count == 0) {
+        lval_del(a);
+        return lval_err("Function `head` passed {}!");
+    }
+
+    // Otherwise take first argument
+    lval* v = lval_take(a, 0);
+
+    // Delete all elements that are not head and return
+    while (v->count > 1) { lval_del(lval_pop(v, 1)); }
+    return v;
+}
+
+lval* builtin_tail(lval* a) {
+    // Check error conditions
+    if (a->count != 1) {
+        lval_del(a);
+        return lval_err("Function `tail` passed too many arguments!");
+    }
+
+    if (a->cell[0]->type != LVAL_QEXPR) {
+        lval_del(a);
+        return lval_err("Function `tail` passed incorrect types!");
+    }
+
+    if (a->cell[0]->count == 0) {
+        lval_del(a);
+        return lval_err("Function `tail` passed {}!");
+    }
+
+    // Otherwise, take the first argument
+    lval* v = lval_take(a, 0);
+
+    // Delete the first element and return
+    lval_del(lval_pop(v, 0));
+    return v;
+}
+
 // Construct a pointer to a new Number lval
 lval* lval_num(double x)
 {
@@ -254,6 +311,13 @@ lval* lval_sexpr(void) {
     return v;
 }
 
+lval* lval_qexpr(void) {
+    lval* v = malloc(sizeof(lval));
+    v->type = LVAL_QEXPR;
+    v->count = 0;
+    v->cell = NULL;
+    return v;
+}
 
 void lval_del(lval* v) {
     switch(v->type) {
@@ -265,6 +329,7 @@ void lval_del(lval* v) {
         case LVAL_SYM: free(v->sym); break;
 
         // If Sexpr then delete all elements inside
+        case LVAL_QEXPR:
         case LVAL_SEXPR:
         for (int i = 0; i < v->count; i++) {
             lval_del(v->cell[i]);
@@ -290,6 +355,7 @@ lval* lval_read(mpc_ast_t* t) {
     lval* x = NULL;
     if (strcmp(t->tag, ">") == 0) { x = lval_sexpr(); }
     if (strstr(t->tag, "sexpr"))  { x = lval_sexpr(); }
+    if (strstr(t->tag, "qexpr"))  { x = lval_qexpr(); }
 
     // Fill this list with any valid expression contained within
     for (int i = 0; i < t->children_num; i++) {
@@ -330,6 +396,7 @@ void lval_print(lval* v) {
         case LVAL_ERR:   printf("Error: %s", v->err); break;
         case LVAL_SYM:   printf("%s", v->sym); break;
         case LVAL_SEXPR: lval_expr_print(v, '(', ')'); break;
+        case LVAL_QEXPR: lval_expr_print(v, '{', '}'); break;
     }
 }
 
