@@ -49,6 +49,8 @@ lval* builtin(lval*, char*);
 lval* builtin_op(lval*, char*);
 lval* builtin_head(lval*);
 lval* builtin_tail(lval*);
+lval* builtin_cons(lval*);
+lval *lval_cons(lval*, lval*);
 lval* builtin_list(lval*);
 lval* builtin_eval(lval*);
 lval* builtin_join(lval*);
@@ -97,10 +99,11 @@ int main(int argc, char **argv)
     "                                                                   \
      number     : /[-+]?\\d+(\\.\\d+)?/ ;                               \
      symbol     : '+' | '-' | '*' | '/' | '%' | '^' | \"min\" | \"max\" \
-                | \"list\" | \"head\" | \"tail\" | \"join\" | \"eval\" ;\
-     sexpr  : '(' <expr>* ')' ;                                         \
-     qexpr  : '{' <expr>* '}' ;                                         \
-     expr   : <number> | <symbol> | <sexpr> | <qexpr> ;                 \
+                | \"list\" | \"head\" | \"tail\" | \"join\" | \"eval\"  \
+                | \"cons\" ;                                            \
+     sexpr      : '(' <expr>* ')' ;                                     \
+     qexpr      : '{' <expr>* '}' ;                                     \
+     expr       : <number> | <symbol> | <sexpr> | <qexpr> ;             \
      hoagie     : /^/ <expr>* /$/ ;                                     \
     ",
     Number, Symbol, Sexpr, Qexpr, Expr, Hoagie);
@@ -202,6 +205,7 @@ lval* builtin(lval* a, char* func) {
     if (strcmp("head", func) == 0) { return builtin_head(a); }
     if (strcmp("tail", func) == 0) { return builtin_tail(a); }
     if (strcmp("join", func) == 0) { return builtin_join(a); }
+    if (strcmp("cons", func) == 0) { return builtin_cons(a); }
     if (strcmp("eval", func) == 0) { return builtin_eval(a); }
     if (strcmp("max",  func) == 0) { return builtin_op(a, func); }
     if (strcmp("min",  func) == 0) { return builtin_op(a, func); }
@@ -280,6 +284,26 @@ lval* builtin_tail(lval* a) {
 
     // Delete the first element and return
     lval_del(lval_pop(v, 0));
+    return v;
+}
+
+lval* builtin_cons(lval* a) {
+    lval* x = lval_pop(a, 0);
+
+    LASSERT(x, x->type == LVAL_NUM,
+        "First value passed to cons must be a number!");
+
+    // Otherwise, add them together
+    lval* v = lval_cons(x, a);
+    return v;
+}
+
+lval* lval_cons(lval* x, lval* a) {
+    // Convert x to a Qexpr
+    lval* list_of_x = builtin_list(x);
+
+    // Join lval* x and lval* a
+    lval* v = lval_join(list_of_x, a);
     return v;
 }
 
